@@ -1,7 +1,7 @@
 # Project: Social Capital Task
 This is a task assigned by Health Map
 
-![image](figs/1997.jpg)
+![image](../figs/1997.jpg)
 
 
 
