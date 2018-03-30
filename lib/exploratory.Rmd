@@ -73,7 +73,7 @@ library(reshape2)
 head(merged)
 merged.melt<-melt(merged,id.vars = "fips",variable_name = "year",value_name="index")
 merged.melt$year<-as.factor(merged.melt$year)
-
+head(merged,10)
 
 ```
 
@@ -116,31 +116,32 @@ plotmap<-function(df,year){
 ```{r warning=FALSE}
 # map for 1997
 # save images
-# setwd("../figs") # set image path
-# png(filename = paste("1997",".png",sep = ""))
+setwd("../figs") # set image path
+png(filename = paste("1997",".png",sep = ""))
 plotmap(table_1997,"1997")
 # dev.off()
 ```
+
 ```{r warning=FALSE}
 setwd("../figs") # set image path
-png(filename = paste("1997",".png",sep = ""))
+png(filename = paste("2005",".png",sep = ""))
 plotmap(table_2005,"2005") # map for 2006
 dev.off()
 ```
 
 
 ```{r warning=FALSE}
-# setwd("../figs") # set image path
-# png(filename = paste("1997",".png",sep = ""))
+setwd("../figs") # set image path
+png(filename = paste("2009",".png",sep = ""))
 plotmap(table_2009,"2009") # map for 2009
-# dev.off()
+dev.off()
 ```
 
 ```{r warning=FALSE}
-# setwd("../figs") # set image path
-# png(filename = paste("1997",".png",sep = ""))
+setwd("../figs") # set image path
+png(filename = paste("2014",".png",sep = ""))
 plotmap(table_2014,"2014") # map for 2014
-# dev.off()
+dev.off()
 ```
 
 

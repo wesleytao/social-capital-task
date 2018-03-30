@@ -1,0 +1,103 @@
+---
+title: "lasso"
+author: "Wesley_Tao"
+date: "2018/3/30"
+output: html_document
+---
+
+
+```{r}
+Census_data<-read.csv("../data/Census data with variables 2016.csv",header = T,sep=",",as.is = T)
+rate_2014  <-read.table("../output/rate_2014.tsv",header=T)
+# first row seems to be the description of the variable
+var_des    <-Census_data[1,] # store description
+Census_data<-Census_data[-1,-1] # rest of the data,drop the first column
+head(Census_data)
+```
+
+
+```{r}
+library(dplyr)
+# combine the data of social capital index with cencus 
+# head(Census_data)
+# head(rate_2014)
+rate_2014$id          <- as.integer(rate_2014$id)
+Census_data$GEO.id2   <- as.integer(Census_data$GEO.id2)
+names(rate_2014)      <-c("GEO.id2","SK14")
+setdiff(rate_2014$GEO.id2,Census_data$GEO.id2) # geocode  2270 46113 are mismatched 
+newdata<-rate_2014 %>%
+                 left_join(Census_data,by="GEO.id2") # we  are interested in sk2014
+
+```
+
+```{r}
+# we dig into the cencus data we found that HC03_VC03 is the population 
+#                                    and HC03_VC(##) is the ## variable divided by population
+# therefore we select those variables HC03_VC(##)
+X_pattern       <-"HC03_VC[0-9]+"
+newdata_colnames<-names(newdata)
+X_index         <-grep(X_pattern,newdata_colnames)
+head(newdata_colnames[X_index]) # but HC03_VC_03 is the population 
+X_index<-X_index[-1] # remove the first HC03_VC_03
+y_index<-2
+subset_index<-c(y_index,X_index) 
+
+```
+
+
+
+```{r}
+# we also find some variables have (X) we have to get rid of them 
+head(newdata[,"HC03_VC118"]) 
+newdata.subset<-apply(newdata[,subset_index],2,as.numeric)# these '(X)' will be automatically handled by as.integer and replaced by NA
+head(newdata.subset)
+# it seems that we also have some variables which are population labor force, we have to get rid of them too
+# rules are if value is larger than 200 then 
+log.index<-apply(newdata.subset,2,mean,na.rm=T)<200
+new_index<-which(log.index)
+
+
+
+cleaned_data<-newdata.subset[,new_index]
+cleaned_data<-na.omit(cleaned_data) # omit na by row
+```
+
+
+```{r}
+# split the data for train and test 
+# 20% of the data as test data and 80 % as train data 
+
+total.num      <-nrow(cleaned_data)
+test_index_row <-sample(seq(total.num),total.num*0.2)
+train_index_row<-setdiff(seq(total.num),test_index_row)
+
+length(test_index_row)+length(train_index_row)==total.num
+
+
+X_train<-cleaned_data[train_index_row,-1]
+y_train<-cleaned_data[train_index_row,1]
+
+
+```
+
+```{r}
+library(glmnet)
+# 10-fold Cross validation for each alpha = 0, 0.1, ... , 0.9, 1.0
+fit.lasso.cv <- cv.glmnet(X_train, y_train, type.measure="mse", alpha=1, 
+                          family="gaussian",na.omit=T)
+
+options("na.action")
+```
+
+
+
+```{r}
+mean(X_train)
+```
+
+
+
+
+
+
+
