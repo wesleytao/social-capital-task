@@ -11,20 +11,92 @@ Task 1: Please provide a visualization of this data in a map format that describ
 Task 2: Provide analyses on the change of social capital over time by the statistical method of your choice
 
 ```{r message=FALSE}
-library("xlsx") # load the data
 # import the packages we are going to use
+library("xlsx") 
 library("choroplethr")
 library("choroplethrMaps")
-
+# load the data
 table_1997<-read.xlsx("../data/social capital 1997-2014.xlsx", 1)
 table_2005<-read.xlsx("../data/social capital 1997-2014.xlsx", 2)
 table_2009<-read.xlsx("../data/social capital 1997-2014.xlsx", 3)
 table_2014<-read.xlsx("../data/social capital 1997-2014.xlsx", 4)
+# change the header so we could align dataframe
+names(table_2014)<-c("fips","area_name","sk14")
+names(table_2009)
+names(table_2005)
+names(table_1997)
+```
+
+# merge data
+```{r}
+# save them in the output for further exploration
+# converge them in the same table and save them in csv file for further exploration
+library(dplyr)
+m.1<-table_1997 %>% 
+  full_join(table_2005, by = c("fips")) %>%
+  select(fips, sk97, sk05)
+
+m.2<-table_2009 %>% 
+  full_join(table_2014, by = c("fips")) %>%
+  select(fips, sk09, sk14)
+
+merged<-m.1 %>%
+  full_join(m.2, by = c("fips")) %>%
+  select(fips, sk97, sk05, sk09, sk14)
+nrow(merged)
+
+write.csv(merged,file="../output/merged_4_year.csv")# store the whole table
+```
+
+# store each year of data in tsv file
+```{r}
+out_97<-table_1997[,c("fips","sk97")]
+names(out_97)<-c("id","rate")
+write.table(out_97, file="../output/rate_1997.tsv", quote=FALSE, sep='\t', row.names = FALSE)
+
+out_05<-table_2005[,c("fips","sk05")]
+names(out_05)<-c("id","rate")
+write.table(out_05, file="../output/rate_2005.tsv", quote=FALSE, sep='\t', row.names = FALSE)
+
+out_09<-table_2009[,c("fips","sk09")]
+names(out_09)<-c("id","rate")
+write.table(out_09, file="../output/rate_2009.tsv", quote=FALSE, sep='\t', row.names = FALSE)
+
+out_14<-table_2014[,c("fips","sk14")]
+names(out_14)<-c("id","rate")
+write.table(out_14, file="../output/rate_2014.tsv", quote=FALSE, sep='\t', row.names = FALSE)
+
 ```
 
 ```{r}
-head(table_2014)# take a look at the head
+library(reshape2)
+head(merged)
+merged.melt<-melt(merged,id.vars = "fips",variable_name = "year",value_name="index")
+merged.melt$year<-as.factor(merged.melt$year)
+
+
 ```
+
+
+```{r}
+library(ggplot2)
+# plot the histogram 
+ggplot(data=merged.melt,aes(x=value,fill=year))+
+  geom_density(alpha=0.3)
+```
+We do discover a trend that social capital index distribution become more centered. 
+
+```{r}
+head(merged)
+ggplot(data=merged,aes(x=sk97))+
+  geom_histogram()
+```
+```{r}
+ggplot(data=merged,aes(x=sk09))+
+  geom_histogram()
+```
+
+
 
 ```{r message=FALSE,warning=FALSE}
 
@@ -39,6 +111,8 @@ plotmap<-function(df,year){
  
   }
 ```
+
+
 ```{r warning=FALSE}
 # map for 1997
 # save images
@@ -48,10 +122,10 @@ plotmap(table_1997,"1997")
 # dev.off()
 ```
 ```{r warning=FALSE}
-# setwd("../figs") # set image path
-# png(filename = paste("1997",".png",sep = ""))
+setwd("../figs") # set image path
+png(filename = paste("1997",".png",sep = ""))
 plotmap(table_2005,"2005") # map for 2006
-# dev.off()
+dev.off()
 ```
 
 
