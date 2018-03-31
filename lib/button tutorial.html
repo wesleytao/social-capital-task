@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Days Hours Heatmap</title>    
+    <meta charset="utf-8"/>
+    <script type="text/javascript" src="http://d3js.org/d3.v3.js"></script>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+    <div class="days-hours-heatmap">
+      <!-- calibration and render type controller -->
+      <div class="calibration" role="calibration">
+        <div class="group" role="example">
+          <svg width="120" height="17">
+          </svg>
+          <div role="description" class="description">
+            <label>Less</label>
+            <label>More</label>
+          </div>        
+        </div>
+        <div role="toggleDisplay" class="display-control">
+          <div>
+            <input type="radio" name="displayType" checked/>
+            <label>count</label>
+          </div>
+          <div>
+            <input type="radio" name="displayType"/>
+            <label>daily</label> 
+          </div>
+        </div>
+      </div>
+      <!-- heatmap -->
+      <svg role="heatmap" class="heatmap"></svg>
+    </div>
+    
+    <script type="text/javascript" src="app.js"></script>
+  </body>
+</html>

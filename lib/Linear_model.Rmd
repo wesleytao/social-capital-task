@@ -16,7 +16,7 @@ head(Census_data)
 ```
 
 
-```{r}
+```{r warning=FALSE}
 library(dplyr)
 # combine the data of social capital index with cencus 
 # head(Census_data)
@@ -50,7 +50,7 @@ subset_index<-c(y_index,X_index)
 # we also find some variables have (X) we have to get rid of them 
 head(newdata[,"HC03_VC118"]) 
 newdata.subset<-apply(newdata[,subset_index],2,as.numeric)# these '(X)' will be automatically handled by as.integer and replaced by NA
-head(newdata.subset)
+# head(newdata.subset)
 # it seems that we also have some variables which are population labor force, we have to get rid of them too
 # rules are if value is larger than 200 then 
 log.index<-apply(newdata.subset,2,mean,na.rm=T)<200
@@ -60,6 +60,7 @@ new_index<-which(log.index)
 
 cleaned_data<-newdata.subset[,new_index]
 cleaned_data<-na.omit(cleaned_data) # omit na by row
+1
 ```
 
 
@@ -73,6 +74,8 @@ train_index_row<-setdiff(seq(total.num),test_index_row)
 
 length(test_index_row)+length(train_index_row)==total.num
 
+X_test<-cleaned_data[test_index_row,-1]
+y_test<-cleaned_data[test_index_row,1]
 
 X_train<-cleaned_data[train_index_row,-1]
 y_train<-cleaned_data[train_index_row,1]
@@ -80,19 +83,102 @@ y_train<-cleaned_data[train_index_row,1]
 
 ```
 
+
+```{r}
+library(ggplot2)
+library(reshape2)
+cormat<-round(cor(X_train),2)
+melted_cormat<-melt(cormat)
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()
+# it seems that this data set has a lot of collinearity, It might cause a lot of problem, we need regularization 
+```
+
+# variable selection 
+
 ```{r}
 library(glmnet)
-# 10-fold Cross validation for each alpha = 0, 0.1, ... , 0.9, 1.0
-fit.lasso.cv <- cv.glmnet(X_train, y_train, type.measure="mse", alpha=1, 
-                          family="gaussian",na.omit=T)
+# 5-fold Cross validation for each alpha = 0, 0.1, ... , 0.9, 1.0
+alpha_seq<-seq(10)/10
 
-options("na.action")
+result<-data.frame(alpha=alpha_seq,mse=rep(NA,length(alpha_seq)))
+# result
+for(i in 1:length(alpha_seq)){
+  this.alpha <-alpha_seq[i]
+  fit.reg.cv <- cv.glmnet(X_train, y_train,nfold=5, type.measure="mse", alpha=this.alpha, 
+                          family="gaussian")
+  this.lambda<-fit.reg.cv$lambda.min # we choose lambda with the minimun mse 
+  
+  yhat       <-predict(fit.reg.cv, s=this.lambda, newx=X_train) # get pred over the train set
+  mse <- mean((y_train - yhat)^2) #compute mse
+  result[i,2]<-mse #
+}
+
+ggplot(data = result,aes(x=alpha,y=mse))+
+  geom_line()+
+  labs(title="Select Alpha base on cross-validation error")
+# it seems that lasso tend to perform better than ridge regression. based on the graph We are going to select alpha=0.5
+```
+
+
+```{r}
+# it seems lasso tend to overfit the problem
+fit.ela.cv <- cv.glmnet(X_train, y_train, type.measure="mse", alpha=0.5,
+                          family="gaussian",nfolds = 5)
+plot(fit.ridge.cv)
 ```
 
 
 
 ```{r}
-mean(X_train)
+yhat <- predict(fit.ridge.cv, s=fit.lasso.cv$lambda.1se, newx=X_test)
+mse <- mean((y_test - yhat)^2)
+mse
+```
+
+```{r}
+# elastic net
+fit.ela.cv <- cv.glmnet(X_train, y_train, type.measure="mse", alpha=0.5,
+                          family="gaussian",nfolds = 5)
+plot(fit.ela.cv)
+```
+
+```{r}
+# test mse
+yhat <- predict(fit.ela.cv, s=fit.ela.cv$lambda.1se, newx=X_test)
+mse <- mean((y_test - yhat)^2)
+mse
+```
+To conclude the test error is severly higher than train error, this model is overfitting, which means we include too many variables.
+But based on the graph above, we can select top 10 variables which might have statistical significant influence over the social capital index
+
+
+```{r}
+# we are interested in those variabels
+data.frame(n=fit.ela.cv$nzero,lambda=fit.ela.cv$lambda)
+```
+
+Based on the table above, I am going to select top 8 variables lambda=0.5360136197
+```{r}
+# use full data
+final_model<-glmnet(cleaned_data[,-1], cleaned_data[,1], alpha=0.5, lambda=0.5360136197,
+                          family="gaussian")
+head(final_model$beta,10) # as we can see many variabel are shrink to seros
+```
+
+we are interested in those non-zero varariables 
+```{r}
+myvar<-which(final_model$beta!=0)
+final_model$beta
+x_names<-colnames(cleaned_data)[-1]
+data.frame(code=x_names[myvar],coe=final_model$beta[myvar])
+
+```
+
+we are also interested what are these 
+```{r}
+dex_index<-which(colnames(var_des) %in% x_names[myvar])
+t(var_des[,dex_index])
 ```
 
 
