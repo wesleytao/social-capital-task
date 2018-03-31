@@ -25,6 +25,9 @@ names(table_2014)<-c("fips","area_name","sk14")
 names(table_2009)
 names(table_2005)
 names(table_1997)
+
+
+
 ```
 
 # merge data
@@ -47,9 +50,32 @@ nrow(merged)
 
 write.csv(merged,file="../output/merged_4_year.csv")# store the whole table
 ```
+```{r}
+# we have to convert 1001 data 01001 because topojson won't match
+convertion<-function(x){
+  if (x<=9999)
+    {out=paste("0",as.character(x),sep = "")
+    return(out)}
+  else 
+    return(as.character(x))
+}
+convertion(992)
+
+test<-sapply(table_1997$fips,convertion)
+head(test)# it seems works very well
+tail(test)
+```
 
 # store each year of data in tsv file
 ```{r}
+#convert them all
+table_1997$fips<-sapply(table_1997$fips,convertion)
+table_2005$fips<-sapply(table_2005$fips,convertion)
+table_2009$fips<-sapply(table_2009$fips,convertion)
+table_2014$fips<-sapply(table_2014$fips,convertion)
+
+
+
 out_97<-table_1997[,c("fips","sk97")]
 names(out_97)<-c("id","rate")
 write.table(out_97, file="../output/rate_1997.tsv", quote=FALSE, sep='\t', row.names = FALSE)
@@ -67,6 +93,26 @@ names(out_14)<-c("id","rate")
 write.table(out_14, file="../output/rate_2014.tsv", quote=FALSE, sep='\t', row.names = FALSE)
 
 ```
+
+```{r}
+new<-read.table("../output/rate_2014.tsv",header = T)
+summary(new)
+summary(out_05)
+6029 %in% out_14$id
+6013 %in% out_14$id
+table_2014[out_14$id==6029,]
+out_14[out_14$id==6029,]
+new[out_14$id==32007,]
+table_2009[out_09$id==32007,]
+table_2009[out_09$id==6029,]
+
+
+```
+```{r}
+summary(table_2009)
+```
+
+
 
 ```{r}
 library(reshape2)

@@ -22,23 +22,25 @@
 
 <div role="toggleDisplay" class="display-control">
   <div>
-    <input type="radio" name="b2014" value="Update" onclick="UpdateData14()"/>
+    <input type="radio" name="button" value="Update" onclick="UpdateData14()"/>
     <label>2014</label>
   </div>
   <div>
-    <input type="radio" name="b2009" onclick="UpdateData09()"/>
+    <input type="radio" name="button" onclick="UpdateData09()" checked/>
     <label>2009</label>
   </div>
   <div>
-    <input type="radio" name="b2005" onclick="UpdateData05()"/>
+    <input type="radio" name="button" onclick="UpdateData05()"/>
     <label>2005</label>
   </div>
   <div>
-    <input type="radio" name="b1997" onclick="UpdateData97()"/>
+    <input type="radio" name="button" onclick="UpdateData97()"/>
     <label>1997</label>
   </div>
 
 </div>
+
+
 
 
 
@@ -61,8 +63,8 @@
         .domain([1, 4])//1,10
         .rangeRound([700, 830]); //ORIGINAL 800 860
 
-    var color = d3.scaleThreshold() //continues to discrete mapping
-        .domain(d3.range(-3, 6))//set color change here
+    var color = d3.scaleThreshold() //continues to discgrete mapping
+        .domain(d3.range(-4, 5))//set color change here
         .range(d3.schemeBlues[9]);
 
     var g = svg.append("g") //create a container contain the bar which is used for legend
@@ -98,17 +100,10 @@
       .select(".domain")
         .remove();
 
-    svg.append("txt")
-          .attr("class", "caption")
-          .attr("x", 80)
-          .attr("y", 530)
-          .attr("fill", "#000")
-          .attr("font-size","20")
-          .attr("text-anchor", "start")
-          .attr("font-weight", "bold")
-          .text("Social Capital Index by County")
+
 //you control how many tasks run at the same time. When all the tasks complete, or an error occurs,
 //the queue passes the results to your await callback.
+//initialize the map with data 2009
     d3.queue()
        .defer(d3.json, "https://d3js.org/us-10m.v1.json")
        .defer(d3.tsv, "rate_2009.tsv", function (d) { social_capital.set(d.id, +d.rate); }) //read the data and store in social_capital(set)
@@ -116,14 +111,17 @@
 
 function ready(error, us) {
         if (error) throw error;
+        // svg.selectAll("g").remove();
 
-        svg.append("g")
+        svg.append("g") //g is a container
           .attr("class", "counties")
           .selectAll("path")
           .data(topojson.feature(us, us.objects.counties).features)//topojson format  geometry or feature object
           // Returns the GeoJSON Feature topojson.feature(topology, object)
+          //it seems that some county are missing
           .enter().append("path")
             .attr("fill", function (d) { return color(d.rate = social_capital.get(d.id)); })//fill the color by data
+            //if undefinced then
             .attr("d", path)
             .on("mouseover",function(d){
               tempcolor=this.style.fill
@@ -142,18 +140,28 @@ function ready(error, us) {
 
         svg.append("path")
             .datum(topojson.mesh(us, us.objects.states, function (a, b) { return a !== b; }))
-            .attr("class", "states")
+            .attr("class", "states")//stroke line with state
             .attr("d", path);
 
+        svg.append("text")
+              .attr("class", "caption")
+              .attr("x", 150)
+              .attr("y", 30)
+              .attr("fill", "#000")
+              .attr("font-size","20")
+              .attr("text-anchor", "start")
+              .attr("font-weight", "bold")
+              .text("Social Capital Index by County");//if not found then undefined
 
 
     }
 
 
     function UpdateData14(){
+
       d3.queue()
          .defer(d3.json, "https://d3js.org/us-10m.v1.json")
-         .defer(d3.tsv, "rate_2014.tsv", function (d) { social_capital.set(d.id, +d.rate); }) //read the data and store in social_capital(set)
+         .defer(d3.tsv, "../output/rate_2014.tsv", function (d) { social_capital.set(d.id, d.rate); }) //read the data and store in social_capital(set)
          .await(ready);
 
 
@@ -161,20 +169,20 @@ function ready(error, us) {
     function UpdateData09(){
       d3.queue()
          .defer(d3.json, "https://d3js.org/us-10m.v1.json")
-         .defer(d3.tsv, "rate_2009.tsv", function (d) { social_capital.set(d.id, +d.rate); }) //read the data and store in social_capital(set)
+         .defer(d3.tsv, "../output/rate_2009.tsv", function (d) { social_capital.set(d.id, d.rate); }) //read the data and store in social_capital(set)
          .await(ready);
     }
 
     function UpdateData05(){
       d3.queue()
          .defer(d3.json, "https://d3js.org/us-10m.v1.json")
-         .defer(d3.tsv, "rate_2005.tsv", function (d) { social_capital.set(d.id, +d.rate); }) //read the data and store in social_capital(set)
+         .defer(d3.tsv, "../output/rate_2005.tsv", function (d) { social_capital.set(d.id, d.rate); }) //read the data and store in social_capital(set)
          .await(ready);
     }
     function UpdateData97(){
       d3.queue()
          .defer(d3.json, "https://d3js.org/us-10m.v1.json")
-         .defer(d3.tsv, "rate_1997.tsv", function (d) { social_capital.set(d.id, +d.rate); }) //read the data and store in social_capital(set)
+         .defer(d3.tsv, "../output/rate_1997.tsv", function (d) { social_capital.set(d.id, d.rate); }) //read the data and store in social_capital(set)
          .await(ready);
     }
 
