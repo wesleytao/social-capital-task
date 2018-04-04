@@ -40,7 +40,8 @@ county<-gsub(",.*$", "", Census_data$GEO.display.label)
 Census_data$county<-county
 newdata<-rate_2014 %>%
                  left_join(Census_data,by="GEO.id2") #combine two table 
-
+# head(newdata)
+getwd()
 ```
 
 
@@ -64,11 +65,13 @@ X_pattern       <-"HC03_VC[0-9]+"# regular expression
 newdata_colnames<-names(newdata)
 X_index         <-grep(X_pattern,newdata_colnames)
 head(newdata_colnames[X_index],10) # but HC03_VC_03 is the population
+X_index
 ```
+
+
 There are also part of the data is in the form of (X), so we get rid of them too.
 ```{r}
 head(newdata[,"HC03_VC118"])
-
 ```
 ```{r}
 newdata<-na.omit(newdata)
@@ -76,46 +79,65 @@ var_des[4]
 pop<-as.numeric(newdata$HC01_VC03) # this variable is the population estimate
 
 ```
+```{r}
+length(pop)
+```
 
 ```{r echo=FALSE, warning=FALSE}
-# X_index    <-X_index[-1] # remove the first HC03_VC_03
+X_index     <-X_index[-1] # remove the first HC03_VC_03
 y_index     <-2
 subset_index<-c(y_index,X_index) # combine with y
+newdata<-apply(newdata[,subset_index],2,as.numeric)# these '(X)' will be automatically handled by as.integer and replaced by NA
 
-newdata.subset<-apply(newdata[,subset_index],2,as.numeric)# these '(X)' will be automatically handled by as.integer and replaced by NA
-# head(newdata.subset)
-# it seems that we also have some variables which are population labor force, we have to get rid of them too
-# rules are if value is larger than 200 then 
-pop<-newdata
-log.index<-apply(newdata.subset,2,mean,na.rm=T)<200
-new_index<-which(log.index)
-
-cleaned_data<-newdata.subset[,new_index]
-cleaned_data<-na.omit(cleaned_data) # omit na by row
+nrow(newdata)
+head(newdata)
 ```
 
-After doing so we have all the data that is cleaned. We have 1 response varible and 100 response variables left. 
 ```{r}
-ncol(cleaned_data)
+nrow(newdata)==length(pop)
+# divide by population 
+# we need to find insurance coverage 
+
+columncasewisedivide<-function(nominator,denominator){
+  return(nominator/denominator)
+}
+X<-apply(newdata[,4:ncol(newdata)],2,columncasewisedivide,denominator=pop)
+# newdata[1:10,4:ncol(newdata)]
+cleaned_data<-cbind(newdata[,1],X)
+
 ```
+```{r}
+# center and scale first
+scaled_data<-scale(cleaned_data, center = TRUE, scale = TRUE)
+?scale
+# head(scaled_data)
+ncol(scaled_data)
+
+# get rid of NA values
+scaled_data<-scaled_data[,colSums(!is.na(scaled_data)) > 0]
+require(stats)
+x <- matrix(1:10, ncol = 2)
+x
+(centered.x <- scale(x, scale = FALSE))
+cov(centered.scaled.x <- scale(x)) # all 1
+```
+
 
 ### b how I deal with the 100 varibles 
 There are 100 varibles. These are the varibles HC01 which is already divided by the population. 
 for example HC03_VC04 is the employment rate.
 
-```{r}
-# We are going to divide all the explanatory variables by population of the each county
-cleaned_data[1:4,1:10]
-```
-
-
 ## 2.2 Data Description
 # 3.Exploratory result
 ```{r echo=TRUE}
-class(pop)
-ggplot(data=data.frame(pop=pop))+
+# class(pop)
+setwd("../figs") # set image path
+png(filename = paste("population",".png",sep = ""))
+ggplot(data=data.frame(pop=log(pop)))+
   geom_histogram(aes(x=pop))+
   labs(x="log_population",title="population distribution of US")
+dev.off()
+
 ```
 
 ```{r echo=TRUE, warning=FALSE}
@@ -124,51 +146,45 @@ merged<-read.csv("../output/merged_4_year.csv")
 merged<-merged[,-1]
 merged.melt<-melt(merged,id.vars = "fips",variable_name = "year",value_name="index")
 merged.melt$year<-as.factor(merged.melt$year)
+
+
+setwd("../figs") # set image path
+png(filename = paste("Socail Capital",".png",sep = ""))
+
 ggplot(data=merged.melt,aes(x=value,fill=year))+
   geom_density(alpha=0.3)+
   labs(x="index",title="Social Capital index for each year")
+dev.off()
 ```
-Interesting things: 
-The distribution of Social capital index seems to be more concentrated for each year since 1997. Which means most of number are more closed to center 0. 
 
+```{r}
+head(merged.melt)
+merged.melt<-na.omit(merged.melt)
+tapply(merged.melt$value,merged.melt$year,mean)
 
-
-
-
-# 4.Model Building
-## 4.1 Lasso with regularization for feature selection
-Justification 
-## 4.2 Classification for seeing feature importance
-## 4.3 Anova Analysis for time pattern
-## 4.4 Boostrap
-# 5. Result and Interpretation 
-
-
-
-
-
-
-
-
+```
 
 # Train and test split
 ```{r}
 # split the data for train and test 
 # 20% of the data as test data and 80 % as train data 
 set.seed(1)
-total.num      <-nrow(cleaned_data)
+scaled_data<-na.omit(scaled_data)
+
+total.num      <-nrow(scaled_data)
 test_index_row <-sample(seq(total.num),total.num*0.2)
 train_index_row<-setdiff(seq(total.num),test_index_row)
 
+X_test<-scaled_data[test_index_row,-1]
+y_test<-scaled_data[test_index_row,1]
 
-
-X_test<-cleaned_data[test_index_row,-1]
-y_test<-cleaned_data[test_index_row,1]
-
-X_train<-cleaned_data[train_index_row,-1]
-y_train<-cleaned_data[train_index_row,1]
+X_train<-scaled_data[train_index_row,-1]
+y_train<-scaled_data[train_index_row,1]
 
 length(test_index_row)+length(train_index_row)==total.num # make sure the number meet
+
+
+# sum(is.na(X_train))
 ```
 
 # Heat map of variable correlation
@@ -177,10 +193,11 @@ library(ggplot2)
 library(reshape2)
 cormat       <-round(cor(X_train),2)
 melted_cormat<-melt(cormat) # transform to a narrow format
-
-ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+# head(melted_cormat,3)
+ggplot(data = melted_cormat, aes(x=X1, y=X2, fill=value)) + 
   geom_tile()
 # it seems that this data set has a lot of collinearity, It might cause a lot of problem, we need regularization 
+
 ```
 
 # Elastic Net for variable selection
@@ -216,6 +233,10 @@ for(i in 1:length(alpha_seq)){
 }
 
 # plot mse over alpha
+
+setwd("../figs") # set image path
+png(filename = paste("cross-validation error_scaled",".png",sep = ""))
+
 ggplot(data = result,aes(x=alpha,y=mse))+
   geom_line()+
   labs(title="Select Alpha based on cross-validation error")
@@ -229,20 +250,17 @@ it seems that lasso perform better than ridge regression. based on the pics abov
 set.seed(1)
 fit.ela.cv <- cv.glmnet(X_train, y_train, type.measure="mse", alpha=0.9,
                           family="gaussian",nfolds = 5)
+
+setwd("../figs") # set image path
+png(filename = paste("select lambda",".png",sep = ""))
 plot(fit.ela.cv)
+dev.off()
+
+
 yhat <- predict(fit.ela.cv, s=fit.ela.cv$lambda.1se, newx=X_test)
 test_mse <- mean((y_test - yhat)^2)
 
 ```
-
-```{r}
-setwd("../figs") # set image path
-png(filename = paste("coe path",".png",sep = ""))
-plot(fit.ela.cv$glmnet.fit,"lambda",label = T)
-dev.off()
-
-```
-
 
 ```{r}
 test_mse
@@ -254,15 +272,16 @@ But based on the graph above, we can select top 10 variables which might have st
 
 ```{r}
 # we are interested in those variabels
-head(data.frame(n=fit.ela.cv$nzero,lambda=fit.ela.cv$lambda),14)
+head(data.frame(n=fit.ela.cv$nzero,lambda=fit.ela.cv$lambda),20)
 ```
 
-Based on the table above, I am going to select top 8 variables lambda=0.1932824	
+Based on the table above, I am going to select top 10 variables lambda=0.10475557
 ```{r}
 # use full data
-final_model<-glmnet(cleaned_data[,-1], cleaned_data[,1], alpha=0.9, lambda=0.1932824,
+final_model<-glmnet(scaled_data[,-1], scaled_data[,1], alpha=0.9, lambda=0.10475557,
                           family="gaussian")
 head(final_model$beta,10) # as we can see many variables are shrink to seros
+scaled_data[,1]
 ```
 
 we are interested in those non-zero varariables 
@@ -287,6 +306,12 @@ We found several varibles which are highly correlated to the social capital inde
 3. Health Insurance Coverage  (+)
 4. No Health cover            (-)
 5. Below Poverty              (-)
+```{r}
+library(gbm)
+instal
+```
+
+
 
 
 
