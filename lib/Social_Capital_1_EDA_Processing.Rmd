@@ -5,8 +5,6 @@ date: "2018/5/12"
 output: html_document
 ---
 
-
-
 ![](../figs/mediation.png)
 
 Treatment Variable | Mediation variable | Response Variable
@@ -16,11 +14,7 @@ Treatment Variable | Mediation variable | Response Variable
 
 ***
 
-
-
-
-
-# 1. Preprocessing and Data Engineering
+# 1. Preprocessing 
 
 ```{r message=FALSE}
 library("xlsx") 
@@ -121,7 +115,7 @@ cat("\nThis value is around the center of the data. In statistics, it wouldn't a
 
 
 ```{r}
-m1<-plm(sk14~Gini_Coefficient,data=merged)
+m1<-lm(sk14~Gini_Coefficient,data=merged)
 summary(m1)
 ```
 
@@ -164,7 +158,6 @@ summary(med.fit)
 Jim Crow Laws --> social capital 1997, 2005, 2009, 2014 (do for each year separately)
 
 
-
 #### year 1997
 ```{r}
 summary(lm(sk97~Jim_Crow,data=merged))
@@ -188,7 +181,6 @@ ggplot(data=merged,aes(x=sk97,color=Jim_Crow))+
 #### year 2005
 ```{r}
 summary(lm(sk05~Jim_Crow,data=merged))
-
 ```
 ```{r}
 ggplot(data=merged,aes(x=sk05,color=Jim_Crow))+
@@ -244,47 +236,12 @@ Jim Crow Laws + Gini Coefficient --> Social Capital (2014)
 out.fit<-lm(sk14~Jim_Crow+Gini_Coefficient,data=merged)
 summary(out.fit)
 ```
-
-
-# Mediation Analysis
-6. Mediation analysis for Jim Crow Laws + Gini Coefficient --> Social Capital (2014)
-
 ```{r}
 
-med.out<-mediation::mediate(med.fit,out.fit,treat = "Jim_Crow",mediator = "Gini_Coefficient")
-summary(med.out)
-
-```
-This method is using simulation samples to construct the confidence interval for direct effect and mediate effect.
-
-ADE stands for average direct effect 
-$$Direct\space Effect=Y_i(1,M_i(t))-Y_i(0,M_i(t)))$$
-
-ACME means the average causal mediation effects 
-$$Mediate\space Effect=Y_i(t,M_i(1))-Y_i(t,M_i(0)))$$
-
-$$ Total\space Effect = Mediation \space Effect + Direct\space Effect $$
-
-
-prop.mediated stands for the proportion of meidation effect. This is a ratio 
-
-$$ prop.mediate = mediate.effect/direct.effect $$ 
-
-
-
-```{r}
-cat("Prop Mediated is a ratio of two estimates, which are known to have a very high variance especially when the average treatment effect is not precisely estimated.")
-cat(" I would focus on the point estimate of this quantity rather than its CI.  The most important thing is the ACME which have a much more stable CI.")
+write.csv(merged,"../output/merged.csv",row.names = FALSE)
 ```
 
 
-```{r}
-plot(med.out)
-```
-
-```{r}
-cat(" mediation effect is very small compared to direct effect. ")
-```
 
 
 

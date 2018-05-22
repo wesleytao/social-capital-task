@@ -1,0 +1,156 @@
+---
+title: "Social_Capital_2_Simple_Modeling"
+author: "Wesley_Tao"
+date: "2018/5/21"
+output: html_document
+---
+
+```{r}
+library(lme4)
+library(ggplot2)
+library("mediation")
+social.capital<-read.csv("../output/merged.csv")
+head(social.capital)
+```
+
+# Gini Coefficient
+## Fixed Effect Model for Gini_coefficient
+Question: Are jim_crow states and non_jim_crow states have different Gini_coefficient?
+Models: one-way anova
+$$ y_{ij}=\mu+\alpha_j+\epsilon_{ij}$$
+$y_{ij}$represent the gini coefficient of county i in state j  
+
+$\mu$ stands for the grand mean
+
+$\alpha_{j}$ stands for the dummy variable introduced by jim crow law state
+
+```{r}
+simple.one.way<-aov(Gini_Coefficient~Jim_Crow,data=social.capital)
+summary(simple.one.way)
+```
+
+Answers: 
+Null hypothesis for this test is: $$ H_0 : \alpha =0 \space H_a: \alpha \neq 0$$
+According to the summary statistics (Pr(>F)<0.0001) of this simple analysis, we conclude that jim_crow_states and non_jim_crow states have very different level of gini_coefficient.
+
+
+
+## Random Effect for Gini_coefficient
+In the previous model, all the counties are divided into 2 groups and within each group they are treated identical. Now we would like to capture the state variability in our model.
+
+
+
+```{r}
+this_oder<-order(social.capital$Jim_Crow,social.capital$State)
+social.capital<-social.capital[this_oder,]
+ggplot(data=social.capital)+
+  geom_boxplot(aes(x=reorder(State,Jim_Crow),y=Gini_Coefficient,color=Jim_Crow))+
+  labs(title="box plot for gini coefficient for each state")
+```
+
+We are going to introduce group specific random effect for each state in the model: which means the intercept for each states are different.
+$$ y_{ij}=\alpha_j+\beta_j+\epsilon_{ij}$$
+$\beta_j$ stands for the intercept for group j
+$\alpha_j$ stands for the jim_crow dummy variable
+
+```{r}
+r.e.1<-lmer(Gini_Coefficient~Jim_Crow+(1|State),data=social.capital)
+summary(r.e.1)
+```
+Interpretation: 
+states with Jim_Crow label have a marginal increase 0.013 increase in Gini Coefficient
+
+
+## Statistical significance
+We need some sort of p values unfortunately p-values for mixed model are not straight forward as they are in linear models.   
+I would like to introduce Likelihood Ratio Test as a means to attain P-values  
+Null model: states with varying intercept without jim_crow
+Alternative model: with jim_crow
+
+```{r}
+gini.null<-lmer(Gini_Coefficient~(1|State),data=social.capital)
+gini.alter<-lmer(Gini_Coefficient~Jim_Crow+(1|State),data=social.capital)
+anova(gini.null,gini.alter)
+```
+
+Conclusion: Jim_crow dummy affect Gini Index ($\chi^2(1)=8.62 p=0.0033$) raising about 0.01 $\pm$ 0.004(standard errors)
+
+# Social Capital index multilevel regression
+We are going to do similar statistical test for social capital index for year 1997,2005,2009,2014
+## year 1997
+```{r}
+multilevel.regression<-function(year,df){
+  title.name<-paste("Box Plot for ",year," for each state")
+  p<-ggplot(data=df,environment = environment())+
+  geom_boxplot(aes_string(x="reorder(State,Jim_Crow)",y=year,color="Jim_Crow"))+
+  labs(title=title.name)
+  
+  f.null<-as.formula(paste(year,"~(1|State)"))
+  f.alter<-as.formula(paste(year,"~ Jim_Crow+(1|State)"))
+  
+  gini.null<-lmer(f.null,data=df)
+  gini.alter<-lmer(f.alter,data=df)
+  print(summary(gini.alter))
+  cat("likelihood ratio test for two models")
+  print(anova(gini.null,gini.alter))
+  return(p)
+}
+multilevel.regression("sk97",social.capital)
+```
+
+# year 2005
+```{r}
+multilevel.regression("sk05",social.capital)
+```
+
+## year 2009
+
+```{r}
+multilevel.regression("sk09",social.capital)
+```
+
+```{r}
+multilevel.regression("sk14",social.capital)
+```
+
+
+# Mediation analysis
+
+Mediation analysis for Jim Crow Laws + Gini Coefficient --> Social Capital (2014)
+```{r}
+out.fit<-lm(sk14~Jim_Crow+Gini_Coefficient,data=social.capital)
+med.fit<-lm(Gini_Coefficient~Jim_Crow,data=social.capital)
+med.out<-mediation::mediate(med.fit,out.fit,treat = "Jim_Crow",mediator = "Gini_Coefficient")
+summary(med.out)
+
+```
+This method is using simulation samples to construct the confidence interval for direct effect and mediate effect.
+
+ADE stands for average direct effect 
+$$Direct\space Effect=Y_i(1,M_i(t))-Y_i(0,M_i(t)))$$
+
+ACME means the average causal mediation effects 
+$$Mediation\space Effect=Y_i(t,M_i(1))-Y_i(t,M_i(0)))$$
+
+$$ Total\space Effect = Mediation \space Effect + Direct\space Effect $$
+
+
+prop.mediated stands for the proportion of meidation effect. This is a ratio 
+
+$$ prop.mediate = mediate.effect/direct.effect $$ 
+
+
+
+```{r}
+cat("Prop Mediated is a ratio of two estimates, which are known to have a very high variance especially when the average treatment effect is not precisely estimated.")
+cat(" I would focus on the point estimate of this quantity rather than its CI.  The most important thing is the ACME which have a much more stable CI.")
+```
+
+
+```{r}
+plot(med.out)
+```
+
+```{r}
+cat(" mediation effect is very small compared to direct effect. ")
+```
