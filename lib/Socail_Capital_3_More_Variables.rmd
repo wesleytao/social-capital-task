@@ -19,15 +19,26 @@ output: html_document
 > 2.  JC--> Median Income
 > 3.  JC --> % Less than high school
 
-
-
 ```{r}
-all_content = readLines("../data/Census data with variables 2016.csv")
-skip_second = all_content[-2]
-cencus.data = read.csv(textConnection(skip_second), header = TRUE, stringsAsFactors = FALSE)
+load<-function(path){
+  all_content = readLines(path)
+  skip_first = all_content[-1]
+  df    = read.csv(textConnection(skip_first), header = TRUE, stringsAsFactors = FALSE)
+  return(df)
+}
+urban        <-read.csv("../data/Urban data by county.csv",header = F)
+median.income<-read.csv()
+high.school  <-read.csv("../data/high school information county.csv")
+social.capital<-read.csv("../output/merged.csv")
+
+```
+```{r}
+median.income<-load("../data/Median income by county.csv")
+head(median.income)
 ```
 
 ```{r}
-head(cencus.data)
+urban<-load("../data/Urban data by county.csv")
+head(urban)
 ```
 
