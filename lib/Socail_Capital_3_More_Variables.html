@@ -310,11 +310,211 @@ $(document).ready(function () {
 </div>
 
 
+<pre class="r"><code>library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: 'dplyr'</code></pre>
+<pre><code>## The following objects are masked from 'package:stats':
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>load&lt;-function(path){
+  all_content = readLines(path)
+  skip_first = all_content[-1]
+  df    = read.csv(textConnection(skip_first), header = TRUE, stringsAsFactors = FALSE)
+  return(df)
+}
+urban        &lt;-load(&quot;../data/Urban data by county.csv&quot;)
+median.income&lt;-load(&quot;../data/Median income by county.csv&quot;)
+high.school  &lt;-load(&quot;../data/high school information county.csv&quot;)
+social.capital&lt;-read.csv(&quot;../output/merged.csv&quot;)</code></pre>
+<pre class="r"><code>urban&lt;-urban %&gt;% select(Id2,Urban.,Total.)
+urban$urban_percent=urban$Urban./urban$Total.
+# summary(urban)
+names(social.capital)[1]&lt;-&quot;Id2&quot;</code></pre>
+<pre class="r"><code>median.income&lt;-median.income %&gt;% select(Estimate..INCOME.AND.BENEFITS..IN.2014.INFLATION.ADJUSTED.DOLLARS....Total.households...Mean.household.income..dollars.,Id2)
+names(median.income)&lt;-c(&quot;median_income&quot;,&quot;Id2&quot;)</code></pre>
+<pre class="r"><code>high.school&lt;-high.school %&gt;% select(Id2,Estimate..Total.,Estimate..Less.than.high.school.graduate.)
+high.school$less_than_high_school_graduate_percent&lt;-high.school$Estimate..Less.than.high.school.graduate./high.school$Estimate..Total.
+# summary(high.school)</code></pre>
+<pre class="r"><code>m1&lt;-high.school %&gt;% full_join(median.income,by=&quot;Id2&quot;)
+# +select(Id2,meidan_income,less_than_high_school_graduate_percent)
+m2&lt;-urban %&gt;% full_join(social.capital,by=&quot;Id2&quot;)
+merged&lt;-m1 %&gt;% full_join(m2,by=&quot;Id2&quot;)
+# head(merged)</code></pre>
+<pre class="r"><code>merged$median_income_scale&lt;-scale(merged$median_income)</code></pre>
 <blockquote>
 <p>Control for 1. % Urban + JC –&gt; SC 2014 2. Median Income + JC–&gt; SC 2014 3. % Less than high school + JC – 2014 4. % Less than high school + median income + %urban + + JC –&gt; SC 2014 (there will probably be colinearity but we can work on that)</p>
+</blockquote>
+<pre class="r"><code>m.1&lt;-lm(sk14~Jim_Crow+urban_percent,data=merged)
+summary(m.1)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = sk14 ~ Jim_Crow + urban_percent, data = merged)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -3.5413 -0.6579 -0.1398  0.4514 21.9046 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)    0.83215    0.04211   19.76   &lt;2e-16 ***
+## Jim_CrowTRUE  -0.76196    0.04217  -18.07   &lt;2e-16 ***
+## urban_percent -1.02450    0.06762  -15.15   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.167 on 3103 degrees of freedom
+##   (41 observations deleted due to missingness)
+## Multiple R-squared:  0.1445, Adjusted R-squared:  0.144 
+## F-statistic: 262.1 on 2 and 3103 DF,  p-value: &lt; 2.2e-16</code></pre>
+<pre class="r"><code>m.2&lt;-lm(sk14~Jim_Crow+median_income_scale,data=merged)
+summary(m.2)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = sk14 ~ Jim_Crow + median_income_scale, data = merged)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -3.3107 -0.6955 -0.1893  0.4179 22.1269 
+## 
+## Coefficients:
+##                     Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)          0.39742    0.03291  12.076   &lt;2e-16 ***
+## Jim_CrowTRUE        -0.70939    0.04506 -15.744   &lt;2e-16 ***
+## median_income_scale  0.02627    0.02256   1.164    0.244    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.209 on 3103 degrees of freedom
+##   (41 observations deleted due to missingness)
+## Multiple R-squared:  0.08163,    Adjusted R-squared:  0.08104 
+## F-statistic: 137.9 on 2 and 3103 DF,  p-value: &lt; 2.2e-16</code></pre>
+<pre class="r"><code>m.3&lt;-lm(sk14~Jim_Crow+less_than_high_school_graduate_percent,data=merged)
+summary(m.3)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = sk14 ~ Jim_Crow + less_than_high_school_graduate_percent, 
+##     data = merged)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -3.5790 -0.7060 -0.1762  0.4499 22.1220 
+## 
+## Coefficients:
+##                                        Estimate Std. Error t value
+## (Intercept)                             1.12075    0.05049  22.197
+## Jim_CrowTRUE                           -0.27783    0.04838  -5.742
+## less_than_high_school_graduate_percent -6.38246    0.35627 -17.915
+##                                        Pr(&gt;|t|)    
+## (Intercept)                             &lt; 2e-16 ***
+## Jim_CrowTRUE                           1.02e-08 ***
+## less_than_high_school_graduate_percent  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.151 on 3103 degrees of freedom
+##   (41 observations deleted due to missingness)
+## Multiple R-squared:  0.1674, Adjusted R-squared:  0.1668 
+## F-statistic: 311.8 on 2 and 3103 DF,  p-value: &lt; 2.2e-16</code></pre>
+<pre class="r"><code>m.4&lt;-lm(sk14~Jim_Crow+less_than_high_school_graduate_percent+urban_percent+median_income_scale,data=merged)
+summary(m.4)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = sk14 ~ Jim_Crow + less_than_high_school_graduate_percent + 
+##     urban_percent + median_income_scale, data = merged)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -3.4476 -0.6412 -0.1279  0.4431 21.8641 
+## 
+## Coefficients:
+##                                        Estimate Std. Error t value
+## (Intercept)                             1.76447    0.05958  29.615
+## Jim_CrowTRUE                           -0.25721    0.04575  -5.622
+## less_than_high_school_graduate_percent -7.61788    0.38225 -19.929
+## urban_percent                          -1.18441    0.06870 -17.240
+## median_income_scale                    -0.03973    0.02481  -1.601
+##                                        Pr(&gt;|t|)    
+## (Intercept)                             &lt; 2e-16 ***
+## Jim_CrowTRUE                           2.05e-08 ***
+## less_than_high_school_graduate_percent  &lt; 2e-16 ***
+## urban_percent                           &lt; 2e-16 ***
+## median_income_scale                       0.109    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.088 on 3101 degrees of freedom
+##   (41 observations deleted due to missingness)
+## Multiple R-squared:  0.2566, Adjusted R-squared:  0.2556 
+## F-statistic: 267.6 on 4 and 3101 DF,  p-value: &lt; 2.2e-16</code></pre>
+<blockquote>
 <p>And if you can repeat this analysis with 1. JC –&gt;% Urban 2. JC–&gt; Median Income 3. JC –&gt; % Less than high school</p>
 </blockquote>
-<pre class="r"><code># read.csv()</code></pre>
+<pre class="r"><code>m.5&lt;-lm(urban_percent~Jim_Crow,data=merged)
+summary(m.5)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = urban_percent ~ Jim_Crow, data = merged)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -0.41759 -0.30228 -0.01061  0.23767  0.62087 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)   0.417589   0.008293  50.353  &lt; 2e-16 ***
+## Jim_CrowTRUE -0.038455   0.011174  -3.442 0.000586 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.3097 on 3104 degrees of freedom
+##   (41 observations deleted due to missingness)
+## Multiple R-squared:  0.003801,   Adjusted R-squared:  0.00348 
+## F-statistic: 11.84 on 1 and 3104 DF,  p-value: 0.000586</code></pre>
+<pre class="r"><code>m.6&lt;-lm(median_income~Jim_Crow,data=merged)
+summary(m.6)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = median_income ~ Jim_Crow, data = merged)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -29303  -8838  -2856   5226  95322 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)   64406.9      375.3  171.63   &lt;2e-16 ***
+## Jim_CrowTRUE  -7304.9      505.6  -14.45   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 14020 on 3104 degrees of freedom
+##   (41 observations deleted due to missingness)
+## Multiple R-squared:  0.06301,    Adjusted R-squared:  0.06271 
+## F-statistic: 208.7 on 1 and 3104 DF,  p-value: &lt; 2.2e-16</code></pre>
+<pre class="r"><code>m.7&lt;-lm(median_income~Jim_Crow,data=merged)
+summary(m.7)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = median_income ~ Jim_Crow, data = merged)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -29303  -8838  -2856   5226  95322 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)   64406.9      375.3  171.63   &lt;2e-16 ***
+## Jim_CrowTRUE  -7304.9      505.6  -14.45   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 14020 on 3104 degrees of freedom
+##   (41 observations deleted due to missingness)
+## Multiple R-squared:  0.06301,    Adjusted R-squared:  0.06271 
+## F-statistic: 208.7 on 1 and 3104 DF,  p-value: &lt; 2.2e-16</code></pre>
 
 
 

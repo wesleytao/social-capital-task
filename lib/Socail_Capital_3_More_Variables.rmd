@@ -5,19 +5,14 @@ date: "2018/5/21"
 output: html_document
 ---
 
-> Control for
-> 1. % Urban + JC --> SC 2014
-> 2. Median Income + JC--> SC 2014
-> 3. % Less than high school + JC -- 2014
-> 4. % Less than high school + median income + %urban + + JC --> SC 2014
-> (there will probably be colinearity but we can work on that)
-> 
-> 
-> 
-> And if you can repeat this analysis with
-> 1.  JC -->% Urban
-> 2.  JC--> Median Income
-> 3.  JC --> % Less than high school
+
+
+
+
+
+```{r}
+library(dplyr)
+```
 
 ```{r}
 load<-function(path){
@@ -26,19 +21,91 @@ load<-function(path){
   df    = read.csv(textConnection(skip_first), header = TRUE, stringsAsFactors = FALSE)
   return(df)
 }
-urban        <-read.csv("../data/Urban data by county.csv",header = F)
-median.income<-read.csv()
-high.school  <-read.csv("../data/high school information county.csv")
+urban        <-load("../data/Urban data by county.csv")
+median.income<-load("../data/Median income by county.csv")
+high.school  <-load("../data/high school information county.csv")
 social.capital<-read.csv("../output/merged.csv")
 
 ```
+
 ```{r}
-median.income<-load("../data/Median income by county.csv")
-head(median.income)
+urban<-urban %>% select(Id2,Urban.,Total.)
+urban$urban_percent=urban$Urban./urban$Total.
+# summary(urban)
+names(social.capital)[1]<-"Id2"
+```
+```{r}
+median.income<-median.income %>% select(Estimate..INCOME.AND.BENEFITS..IN.2014.INFLATION.ADJUSTED.DOLLARS....Total.households...Mean.household.income..dollars.,Id2)
+names(median.income)<-c("median_income","Id2")
 ```
 
 ```{r}
-urban<-load("../data/Urban data by county.csv")
-head(urban)
+high.school<-high.school %>% select(Id2,Estimate..Total.,Estimate..Less.than.high.school.graduate.)
+high.school$less_than_high_school_graduate_percent<-high.school$Estimate..Less.than.high.school.graduate./high.school$Estimate..Total.
+# summary(high.school)
+
 ```
+```{r}
+m1<-high.school %>% full_join(median.income,by="Id2")
+# +select(Id2,meidan_income,less_than_high_school_graduate_percent)
+m2<-urban %>% full_join(social.capital,by="Id2")
+merged<-m1 %>% full_join(m2,by="Id2")
+# head(merged)
+```
+
+```{r}
+merged$median_income_scale<-scale(merged$median_income)
+```
+
+
+> Control for
+> 1. % Urban + JC --> SC 2014
+> 2. Median Income + JC--> SC 2014
+> 3. % Less than high school + JC -- 2014
+> 4. % Less than high school + median income + %urban + + JC --> SC 2014
+> (there will probably be colinearity but we can work on that)
+
+```{r}
+m.1<-lm(sk14~Jim_Crow+urban_percent,data=merged)
+summary(m.1)
+```
+
+```{r}
+m.2<-lm(sk14~Jim_Crow+median_income_scale,data=merged)
+summary(m.2)
+```
+
+```{r}
+m.3<-lm(sk14~Jim_Crow+less_than_high_school_graduate_percent,data=merged)
+summary(m.3)
+```
+
+```{r}
+m.4<-lm(sk14~Jim_Crow+less_than_high_school_graduate_percent+urban_percent+median_income_scale,data=merged)
+summary(m.4)
+```
+> And if you can repeat this analysis with
+> 1.  JC -->% Urban
+> 2.  JC--> Median Income
+> 3.  JC --> % Less than high school
+
+```{r}
+m.5<-lm(urban_percent~Jim_Crow,data=merged)
+summary(m.5)
+
+```
+```{r}
+m.6<-lm(median_income~Jim_Crow,data=merged)
+summary(m.6)
+```
+
+```{r}
+m.7<-lm(median_income~Jim_Crow,data=merged)
+summary(m.7)
+```
+
+
+
+
+
 
