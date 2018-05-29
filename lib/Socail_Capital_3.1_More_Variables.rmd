@@ -1,0 +1,116 @@
+---
+title: "Social_Capital_3.1_more_variable"
+author: "Wesley_Tao"
+date: "2018/5/28"
+output: html_document
+---
+
+```{r message=FALSE}
+library(dplyr)
+```
+
+```{r,echo=FALSE}
+load<-function(path){
+  all_content = readLines(path)
+  skip_first = all_content[-1]
+  df    = read.csv(textConnection(skip_first), header = TRUE, stringsAsFactors = FALSE)
+  return(df)
+}
+```
+
+
+```{r}
+# data_set for 2010-2014
+urban        <-load("../data/Urban data by county.csv")
+median.income<-load("../data/Median income by county.csv")
+high.school  <-load("../data/high school information county.csv")
+social.capital<-read.csv("../output/merged.csv")
+names(social.capital)[1]<-"Id2"
+urban<-urban %>% select(Id2,Urban.,Total.)
+urban$urban_percent=urban$Urban./urban$Total.
+# summary(urban)
+Gini<-load("../data/Gini coefficient 2010-2014.csv")
+high.school<-high.school %>% select(Id2,Estimate..Total.,Estimate..Less.than.high.school.graduate.)
+
+high.school$less_than_high_school_graduate_percent<-high.school$Estimate..Less.than.high.school.graduate./high.school$Estimate..Total.
+
+median.income<-median.income %>% dplyr::select(Estimate..INCOME.AND.BENEFITS..IN.2014.INFLATION.ADJUSTED.DOLLARS....Total.households...Mean.household.income..dollars.,Id2)
+names(median.income)<-c("median_income","Id2")
+
+m1<-high.school %>% full_join(median.income,by="Id2")
+m2<-urban %>% full_join(social.capital,by="Id2")
+merged<-m1 %>% full_join(m2,by="Id2")
+merged<- merged %>% full_join(Gini,by="Id2")
+```
+
+
+```{r}
+# Dataset for 2006-2010
+new.urban<-load("../data/urban rural 2000.csv")
+new.high.school<-load("../data/high school 2006-2010.csv")
+new.median.income<-load("../data/income 2006-2010.csv")
+new.high.school<-new.high.school %>% select(Id2,Total..Estimate..Population.18.to.24.years,Total..Estimate..Less.than.high.school.graduate)
+new.high.school$Total..Estimate..Less.than.high.school.graduate<-as.numeric(new.high.school$Total..Estimate..Less.than.high.school.graduate)/100
+
+new.urban<-urban %>% select(Id2,Urban.,Total.)
+new.urban$urban_percent=new.urban$Urban./new.urban$Total.
+
+new.median.income<-new.median.income %>% 
+  select(Estimate..INCOME.AND.BENEFITS..IN.2010.INFLATION.ADJUSTED.DOLLARS....Mean.household.income..dollars.,Id2)
+
+names(new.median.income)<-c("median_income","Id2")
+
+n.m1<-new.high.school %>% full_join(new.median.income,by="Id2")
+n.m2<-new.urban %>% full_join(social.capital,by="Id2")
+new.merged<-n.m1 %>% full_join(n.m2,by="Id2")
+```
+
+
+
+# Gini_index 2010-2014
+```{r}
+summary(lm(Estimate..Gini.Index~Jim_Crow+urban_percent,data=merged))# 1. % Urban + JC --> SC 2014
+summary(lm(Estimate..Gini.Index~Jim_Crow+median_income,data=merged))
+summary(lm(Estimate..Gini.Index~Jim_Crow+less_than_high_school_graduate_percent,data=merged))
+summary(lm(Estimate..Gini.Index~Jim_Crow+less_than_high_school_graduate_percent+urban_percent+median_income,data=merged))
+```
+
+# social capital 2014
+```{r}
+summary(lm(sk14~Jim_Crow+urban_percent,data=merged))
+summary(lm(sk14~Jim_Crow+median_income,data=merged))
+summary(lm(sk14~Jim_Crow+less_than_high_school_graduate_percent,data=merged))
+summary(lm(sk14~Jim_Crow+less_than_high_school_graduate_percent+urban_percent+median_income,data=merged))
+```
+
+# social capital 2005 with control variable 2006-2010
+```{r}
+summary(lm(sk05~Jim_Crow+urban_percent,data=new.merged))# 
+summary(lm(sk05~Jim_Crow+median_income,data=new.merged))
+summary(lm(sk05~Jim_Crow+Total..Estimate..Less.than.high.school.graduate,data=new.merged))
+summary(lm(sk05~Jim_Crow+Total..Estimate..Less.than.high.school.graduate+urban_percent+median_income,data=new.merged))
+
+```
+
+# social captial 2009  with control variable 2006-2010
+```{r}
+summary(lm(sk09~Jim_Crow+urban_percent,data=new.merged))# 
+summary(lm(sk09~Jim_Crow+median_income,data=new.merged))
+summary(lm(sk09~Jim_Crow+Total..Estimate..Less.than.high.school.graduate,data=new.merged))
+summary(lm(sk09~Jim_Crow+Total..Estimate..Less.than.high.school.graduate+urban_percent+median_income,data=new.merged))
+
+```
+
+
+
+> And if you can repeat this analysis with
+> 1.  JC -->% Urban
+> 2.  JC--> Median Income
+> 3.  JC --> % Less than high school
+
+```{r}
+summary(lm(urban_percent~Jim_Crow,data=merged))
+summary(lm(median_income~Jim_Crow,data=merged))
+summary(lm(median_income~Jim_Crow,data=merged))
+```
+`
